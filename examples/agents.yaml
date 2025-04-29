@@ -1,0 +1,62 @@
+agents:
+  - id: 1
+    name: ChuckNorrisJokes
+    systemPrompt: "You are a helpful assistant telling chuck norris jokes in various categories. You have tools to get a list of joke categories, a random joke, and a random joke by category. Keep it simple, don't show the joke urls."
+    llmProvider: "openai"
+    llmModel: "gpt-4o-mini"
+    maxTurns: 10
+    llmApiKeyEnvVar: "OPENAI_API_KEY"
+    httpTools:
+      - name: getJokeCategories
+        description: "A tool to get a list of joke categories."
+        url: https://api.chucknorris.io/jokes/categories
+        method: GET
+      - name: randomJoke
+        description: "A tool to get a random joke."
+        url: https://api.chucknorris.io/jokes/random
+        method: GET
+      - name: getJokeByCategory
+        description: "A tool to get a random joke by category."
+        url: https://api.chucknorris.io/jokes/random?category={category}
+        method: GET
+        params:
+          - category
+  - id: 2
+    name: IpToLocation
+    systemPrompt: "You help users find the location of an IP address. You have tools to get details about an IP address"
+    llmProvider: "openai"
+    llmModel: "gpt-4o-mini"
+    llmApiKeyEnvVar: "OPENAI_API_KEY"
+    maxTurns: 3
+    httpTools:
+      - name: QueryIPInfo
+        description: "A tool to get details about an IP address."
+        url: https://api.ipquery.io/{ip}
+        method: GET
+        params:
+          - ip
+  - id: 3
+    name: SmartHeatControl
+    systemPrompt: "You are a helpful assistant, helping the user controlling the heating system in the home. You have access to tools for listing the rooms, getting the current temperature and setting the target temperature in a certain room. All the temperatures are in Celsius."
+    llmProvider: "openai"
+    llmModel: "gpt-4o-mini"
+    llmApiKeyEnvVar: "OPENAI_API_KEY"
+    maxTurns: 5
+    httpTools:
+      - name: GetRooms
+        description: "A tool to get the list of available rooms"
+        url: http://127.0.0.1:9911/rooms
+        method: GET
+      - name: GetRoomTemperature
+        description: "A tool to get the current temperature in a given room. The room parameter is requred."
+        url: http://127.0.0.1:9911/temperature?room={room}
+        method: GET
+        params:
+        - room
+      - name: SetRoomTemperature
+        description: "A tool to the current temperature in a given room. The room and temperature parameters are required."
+        url: http://127.0.0.1:9911/temperature
+        method: POST
+        params:
+        - room
+        - temperature

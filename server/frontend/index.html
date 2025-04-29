@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentKraft</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        #sidebar {
+            width: 25%;
+
+            @media (max-width: 768px) {
+                width: 100%;
+            }
+
+            background-color: #f4f4f4;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        #sidebar h2 {
+            margin: 0;
+            margin-bottom: 0.4em;
+        }
+
+        .agent {
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s;
+        }
+
+        .agent:hover {
+            background-color: #e0e0e0;
+        }
+
+        #chat-window {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .message-container {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .message-container.user {
+            justify-content: flex-end;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 15px;
+            font-family: Arial, sans-serif;
+            white-space: pre;
+
+            white-space: pre-wrap;
+            /* css-3 */
+            white-space: -moz-pre-wrap;
+            /* Mozilla, since 1999 */
+            white-space: -pre-wrap;
+            /* Opera 4-6 */
+            white-space: -o-pre-wrap;
+            /* Opera 7 */
+            word-wrap: break-word;
+            /* Internet Explorer 5.5+ */
+        }
+
+        .message.agent-msg {
+            background-color: #e0f7fa;
+        }
+
+        .message-container.user .message {
+            background-color: #d1c4e9;
+        }
+
+        #message-input {
+            width: calc(100% - 80px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        #send-message {
+            padding: 10px 20px;
+            background-color: #6200ea;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #send-message:hover {
+            background-color: #3700b3;
+        }
+
+        #chat-window h2 {
+            margin: 0px;
+            margin-bottom: 0.4em;
+        }
+
+        .agent-details p {
+            margin: 0.3em 0px;
+            padding: 0;
+        }
+
+        .hidden-small {
+            @media (max-width: 768px) {
+                display: none;
+            }
+        }
+
+        #close-chat {
+            margin-right: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            margin-bottom: 0.4em;
+        }
+
+        #chat-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <h2>Agents</h2>
+        <div id="agents-container"></div>
+
+        <h2 class="agent-details" style="display: none">Agent Info</h2>
+        <div class="agent-details" style="display: none" id="agent-details"></div>
+    </div>
+
+    <div id="chat-window">
+        <div id="chat-top">
+            <h2>Chat with <span id="agent-name"></span></h2>
+            <button id="close-chat">Close</button>
+        </div>
+        <div id="messages"></div>
+        <div style="display: flex;">
+            <input type="text" id="message-input" placeholder="Type a message">
+            <button id="send-message">Send</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            var agents = [];
+
+            // Fetch and display agents
+            $.get('/agents/', function (data) {
+                agents = data.agents;
+                agents.forEach(agent => {
+                    $('#agents-container').append(`<div class="agent" data-id="${agent.id}">${agent.name}</div>`);
+                });
+            });
+
+            let socket;
+
+            // Handle agent click
+            $(document).on('click', '.agent', function () {
+                $(".agent-details").hide();
+
+                const agentId = $(this).data('id');
+                $('#chat-window').css('display', 'none');
+                $('#messages').empty();
+
+                // Close existing socket if open
+                if (socket) {
+                    socket.close();
+                }
+
+                // Open new WebSocket connection
+                currentUrl = window.location.href;
+                socket = new WebSocket(`ws://${currentUrl.split('/')[2]}/agents/ws/${agentId}/`);
+
+                socket.onmessage = function (event) {
+                    const message = event.data;
+                    $('#messages').append(`<div class="message-container"><div class="message agent-msg">${message}</div></div>`);
+                };
+
+                socket.onclose = function () {
+                    console.log('Socket closed');
+                };
+
+                // on connection, show chat window
+                socket.onopen = function () {
+                    $('#chat-window').css('display', 'flex');
+                    $('#messages').append('<div class="message-container"><div class="message agent-msg">How can I help you?</div></div>');
+                };
+
+                let agent = agents.find(a => a.id == agentId);
+
+                $('#agent-name').text(agent.name);
+                $('#sidebar').addClass('hidden-small');
+                if (agent) {
+                    let toolsList = agent.httpTools.map(tool => `<li>${tool.name} (${tool.method})</li>`).join('');
+
+                    $('#agent-details').html(`
+                        <p><strong>Name:</strong> ${agent.name}</p>
+                        <p><strong>LLM Provider:</strong> ${agent.llmProvider}</p>
+                        <p><strong>LLM Model:</strong> ${agent.llmModel}</p>
+                        <p><strong>System Prompt:</strong> ${agent.systemPrompt}</p>
+                        <p><strong>Templerature:</strong> ${agent.llmTemperature}</p>
+                        <p><strong>HTTP Tools:</strong> ${toolsList}</p>
+                    `);
+                    $(".agent-details").show();
+                }
+            });
+
+            // Send message
+            $('#send-message').click(function () {
+                const message = $('#message-input').val();
+                if (socket && message) {
+                    socket.send(message);
+                    $('#messages').append(`<div class="message-container user"><div class="message">${message}</div></div>`);
+                    $('#message-input').val('');
+                }
+            });
+
+            // Handle Enter key for sending messages
+            $('#message-input').keypress(function (e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    $('#send-message').click();
+                }
+            });
+
+            // Handle window close
+            $(window).on('beforeunload', function () {
+                if (socket) {
+                    socket.close();
+                }
+            });
+
+            $('#close-chat').click(function () {
+                $('#chat-window').css('display', 'none');
+                $('#sidebar').removeClass('hidden-small');
+                if (socket) {
+                    socket.close();
+                }
+                $('#agent-details').empty();
+                $('.agent-details').hide();
+            });
+        });
+    </script>
+</body>
+
+</html>
